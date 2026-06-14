@@ -23,6 +23,23 @@ def save_categories():
     with open(category_file, "w") as f:
         json.dump(st.session_state.categories, f)
 
+def categorize_transactions(df):
+    df["Category"] = "Uncategorized"
+
+    # if transaction details was in a prev category, match it to prev
+    for category, keywords in st.session_state.categories.items():
+        if category == "Uncategorized" or not keywords:
+            continue
+
+        lowered_keywords = [keyword.lower().strip() for keyword in keywords]
+
+        for idx, row in df.iterrows():
+            details = row["Details"].lower().strip()
+            if details in lowered_keywords:
+                df.at[idx, "Category"] = category
+    
+    return df
+
 def load_transactions(file):
     try:
         df = pd.read_csv(file)
@@ -30,10 +47,19 @@ def load_transactions(file):
         df["Amount"] = df["Amount"].str.replace(",", "").astype(float) # remove commas/make float
         df["Date"] = pd.to_datetime(df["Date"], format="%d %b %Y")
 
-        return df
+        return categorize_transactions(df)
     except Exception as e:
         st.error(f"Error processing file: {str(e)}")
         return None
+    
+def add_keyword_to_category(category, keyword):
+    keyword = keyword.strip()
+    if keyword and keyword not in st.session_state.categories[category]:
+        st.session_state.categories[category].append(keyword)
+        save_categories()
+        return True
+    
+    return False
 
 def main():
     st.title("Finance Dashboard")
@@ -51,6 +77,15 @@ def main():
             tab1, tab2 = st.tabs(["Expenses (Debits)", "Payments (Credits)"])
 
             with tab1:
+                new_category = st.text_input("New Category Name")
+                add_button = st.button("Add Category")
+
+                if add_button and new_category:
+                    if new_category not in st.session_state.categories:
+                        st.session_state.categories[new_category] = []
+                        save_categories()
+                        st.rerun()
+
                 st.write(debits_df)
 
             with tab2:
