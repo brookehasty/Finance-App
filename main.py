@@ -10,6 +10,8 @@ def load_transactions(file):
     try:
         df = pd.read_csv(file)
         df.columns = [col.strip() for col in df.columns] # remove white spaces
+        df["Amount"] = df["Amount"].str.replace(",", "").astype(float) # remove commas/make float
+        df["Date"] = pd.to_datetime(df["Date"], format="%d %b %Y")
         st.write(df)
 
         return df
@@ -24,5 +26,9 @@ def main():
 
     if uploaded_file is not None:
         df = load_transactions(uploaded_file)
+
+        if df is not None:
+            debits_df = df[df["Debit/Credit"] == "Debit"].copy()
+            credits_df = df[df["Debit/Credit"] == "Credit"].copy()
 
 main()
